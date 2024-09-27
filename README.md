@@ -1,4 +1,4 @@
-# database_meetScribe
+# databaes_meetScribe
 
 After sitting through one too many endless meetings, we figured, why not let an AI take notes, summarise the chaos, and even tell us who's slacking?
 
