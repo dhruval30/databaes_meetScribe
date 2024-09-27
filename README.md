@@ -7,7 +7,6 @@ After sitting through one too many endless meetings, we figured, why not let an 
 - **Context-Aware Summaries**: Turns hours of conversation into bite-sized, meaningful summaries.
 - **Action Point Extraction**: Pulls out tasks, so your "to-do" list basically writes itself.
 - **Sentiment Analysis**: Get the emotional tone of the conversation—whether it’s all high-fives or a slow burn toward chaos.
-- **Multilingual Support**: Language barriers? Not here. Summarizes meetings in multiple languages for global teams.
 
 This project is a work in progress. Features and functionality will be added as we move forward.
 
