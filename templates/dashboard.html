@@ -60,5 +60,41 @@
             alert("Sentiment analysis for " + sentiment + " is coming soon!");
         });
     </script>
+        <!-- Action Points Button and Display -->
+        <div class="action-points-section">
+            <h2>Generate Action Points</h2>
+            <button id="generate-action-points" class="action-btn">Generate Action Points</button>
+            <div id="action-points-output"></div>
+        </div>
+    
+    <script>
+        // Handle click on a speaker button
+        $('.speaker-btn').click(function() {
+            var speaker = $(this).data('speaker');
+            if (speaker === 'Overall') {
+                $('#graph').attr('src', 'data:image/png;base64,{{ overall_graph_url }}');
+            } else {
+                $.post('/update_graph', { speaker: speaker }, function(response) {
+                    $('#graph').attr('src', 'data:image/png;base64,' + response.graph_url);
+                });
+            }
+        });
+
+        // Handle click on the Generate Action Points button
+        $('#generate-action-points').click(function() {
+        $.ajax({
+            type: 'POST',
+            url: '/generate_action_points',
+            success: function(response) {
+                console.log("Success:", response);
+                $('#action-points-output').html('<p>' + response.action_points + '</p>');
+            },
+            error: function(xhr, status, error) {
+                console.log("Error:", status, error);
+            }
+        });
+    });
+
+    </script>
 </body>
 </html>
