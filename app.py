@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 import os
 import matplotlib.pyplot as plt
 import io
@@ -53,7 +53,7 @@ def get_transcript_text():
 def landing():
     return render_template('landing.html')
 
-# Route to handle file upload
+# Route to handle file upload and redirect to selection page
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'transcript' not in request.files:
@@ -66,9 +66,19 @@ def upload_file():
     if file and file.filename.endswith('.txt'):
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'transcript.txt')
         file.save(filepath)  # Save the uploaded file as transcript.txt
-        return redirect('/dashboard')
+        return redirect(url_for('selection'))
     else:
         return "Invalid file format. Please upload a .txt file."
+
+# Route for the selection page where users can choose between "Meety" or "Dashboard"
+@app.route('/selection')
+def selection():
+    return render_template('selection.html')
+
+# Chat page after successful file upload
+@app.route('/chat')
+def chat():
+    return render_template('chat.html')
 
 # Route for the dashboard page
 @app.route('/dashboard')
