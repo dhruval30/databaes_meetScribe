@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MeetScribe Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <!-- Top header bar for MeetScribe logo -->
+    <div class="header-row">
+        <div class="project-title">MeetScribe</div>
+    </div>
+
+    <!-- Main content container with the graph -->
+    <div class="container">
+        <h1 class="dashboard-title">Speaker Interaction Dashboard</h1>
+        <p>Below is the participation graph:</p>
+        <img id="graph" src="data:image/png;base64,{{ overall_graph_url }}" alt="Overall Graph"> <!-- Default graph here -->
+    </div>
+
+    <!-- Analysis section with Speaker and Sentiment toggles -->
+    <div class="analysis-section">
+        <!-- Speaker Interaction Toggle Section on the right -->
+        <div class="speakers-toggle">
+            <h4>Speakers:</h4>
+            <button class="speaker-btn" data-speaker="Overall">Overall Participation</button>
+            {% for speaker, count in speaker_counts.items() %}
+            <button class="speaker-btn" data-speaker="{{ speaker }}">{{ speaker }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- Sentiment Analysis Toggle Section on the right, below speakers -->
+        <div class="sentiment-toggle">
+            <h4>Sentiment Analysis:</h4>
+            <button class="sentiment-btn" data-sentiment="Overall">Overall Sentiment</button>
+            {% for speaker, count in speaker_counts.items() %}
+            <button class="sentiment-btn" data-sentiment="{{ speaker }}">{{ speaker }}</button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Handle click on a speaker button
+        $('.speaker-btn').click(function() {
+            var speaker = $(this).data('speaker');
+
+            if (speaker === 'Overall') {
+                $('#graph').attr('src', 'data:image/png;base64,{{ overall_graph_url }}'); // Show overall graph again
+            } else {
+                $.post('/update_graph', { speaker: speaker }, function(response) {
+                    $('#graph').attr('src', 'data:image/png;base64,' + response.graph_url); // Replace the graph
+                });
+            }
+        });
+
+        // Sentiment analysis buttons (to be implemented later)
+        $('.sentiment-btn').click(function() {
+            var sentiment = $(this).data('sentiment');
+            alert("Sentiment analysis for " + sentiment + " is coming soon!");
+        });
+    </script>
+</body>
+</html>

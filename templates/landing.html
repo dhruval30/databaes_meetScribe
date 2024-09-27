@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>MeetScribe - Transcript Analysis</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="landing-page-container">
+        <!-- Welcome Title Positioned Higher -->
+        <h1 class="welcome-title">Welcome to MeetScribe</h1>
+        <hr class="title-divider"> <!-- Line below the welcome title -->
+
+        <div class="content-wrapper">
+            <!-- Info box for the intro section on the left -->
+            <div class="info-box">
+                <ul class="info-points">
+                    <li>Track speaker participation effortlessly</li>
+                    <li>Visualize conversation flow with interactive graphs</li>
+                    <li>Identify key insights in real-time</li>
+                    <li>Generate detailed reports capturing key moments</li>
+                </ul>
+            </div>
+
+            <!-- Purple box for upload form on the right -->
+            <div class="upload-box">
+                <form action="/upload" method="POST" enctype="multipart/form-data">
+                    <label for="transcript-file" class="file-label">Choose Transcript File</label>
+                    <input type="file" id="transcript-file" name="transcript" accept=".txt" required>
+                    <button type="submit" class="upload-button">Upload Transcript</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
