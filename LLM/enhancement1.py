@@ -55,7 +55,7 @@ def upload_transcription_and_sentiments_from_csv(file_path):
     except Exception as e:
         raise ValueError(f"An error occurred while reading the CSV file: {str(e)}")
 
-def feed_chunks_to_model():
+def feed_chunks_to_model(): 
     global transcription_chunks, memory
 
     if not transcription_chunks:
