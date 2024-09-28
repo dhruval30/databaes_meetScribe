@@ -35,6 +35,10 @@ This project leverages several advanced models and APIs, which are integral to i
     classifier_sentiment = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
     ```
 
+### Transformers Library
+
+This project heavily relies on the `transformers` library by Hugging Face for integrating various pre-trained models. The `transformers` library enables seamless access to state-of-the-art models for tasks like automatic speech recognition, sentiment analysis, and text generation. It serves as the backbone for managing these models and running them efficiently within the project.
+
 ### LLaMA
 
 The project integrates the LLaMA3 model for generating conversational responses based on the transcription and sentiment data. This is done through the `LLMChain` from LangChain, which allows for prompt-based conversation handling.
