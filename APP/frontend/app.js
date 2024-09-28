@@ -1,13 +1,14 @@
-// Function to handle transcription upload and create a new chat session
+// Function to handle CSV upload and create a new chat session
 function uploadTranscription() {
     const fileInput = document.getElementById('transcriptionFile');
     const file = fileInput.files[0];
 
-    if (file) {
+    // Check if the selected file is a CSV
+    if (file && file.name.endsWith('.csv')) {
         const formData = new FormData();
         formData.append('transcription', file);
 
-        // Send the file to the backend
+        // Send the CSV file to the backend
         fetch(`http://localhost:5001/upload-transcription?session_id=${Date.now()}`, {
             method: 'POST',
             body: formData
@@ -28,9 +29,13 @@ function uploadTranscription() {
             alert('Failed to upload transcription.');
         });
     } else {
-        alert('Please select a file before uploading.');
+        alert('Please select a valid CSV file.');
     }
 }
+
+// Ensure file input accepts only CSV files
+document.getElementById('transcriptionFile').setAttribute('accept', '.csv');
+
 
 // Function to initialize a new chat session
 function startNewChat(sessionName) {
@@ -241,6 +246,7 @@ window.onload = () => {
     }
 };
 
+// Function to clear all chat history
 function clearChatHistory() {
     const confirmClear = confirm("Are you sure you want to clear all chat history?");
     
@@ -255,6 +261,7 @@ function clearChatHistory() {
     }
 }
 
+// Function to handle predefined prompt clicks
 function sendPrompt(promptText) {
     const currentChatSession = localStorage.getItem('currentChatSession');
 
@@ -269,7 +276,7 @@ function sendPrompt(promptText) {
         chatBody.insertAdjacentHTML('beforeend', newMessage);
         chatBody.scrollTop = chatBody.scrollHeight;  // Scroll to the bottom
 
-
+        // Send the predefined prompt to backend
         fetch('http://localhost:5001/ask-question', {
             method: 'POST',
             headers: {
@@ -279,7 +286,7 @@ function sendPrompt(promptText) {
         })
         .then(response => response.json())
         .then(data => {
-            // Convert markdown response to HTML using marked
+            // Convert markdown response to HTML using marked.js
             const formattedResponse = marked.parse(data.response);
 
             const responseMessage = `
@@ -299,3 +306,4 @@ function sendPrompt(promptText) {
         });
     }
 }
+

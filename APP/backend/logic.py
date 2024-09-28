@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -11,98 +12,158 @@ from langchain_core.prompts import (
 from langchain_core.messages import SystemMessage
 from langchain.chains.conversation.memory import ConversationBufferWindowMemory
 from langchain_groq import ChatGroq
-import json
 
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-
 CORS(app, resources={r"/*": {"origins": ["http://localhost:5501", "http://127.0.0.1:5501"]}}, supports_credentials=True)
 
-# In-memory storage for now; switch to a database in production
-chat_history = []
-
-transcription_data = ""
+# Set max token length for chunking
+MAX_TOKENS_PER_CHUNK = 1000  
+transcription_chunks = []
 memory = ConversationBufferWindowMemory(k=5, memory_key="chat_history", return_messages=True)
 
-def upload_transcription_from_file(file_path):
-    """Reads the transcription from a file."""
-    global transcription_data
+# Ensure the uploads folder exists
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# ======== HELPER FUNCTIONS ========
+
+def chunk_text(text, max_tokens):
+    """Chunk the transcription data based on token size."""
+    chunks = []
+    while len(text) > max_tokens:
+        chunk = text[:max_tokens]
+        text = text[max_tokens:]
+        chunks.append(chunk)
+    chunks.append(text)  # Append the last chunk
+    return chunks
+
+def upload_transcription_and_sentiments_from_csv(file_path):
+    global transcription_chunks
+
     try:
-        with open(file_path, 'r') as file:
-            transcription_data = file.read()
-            print("Transcription uploaded successfully from file.")
+        df = pd.read_csv(file_path)
+        
+        # Ensure all required columns are present; if not, fill with default values
+        required_columns = ["Speaker", "Dialogue", "anger", "disgust", "fear", "joy", "neutral", "sadness", "surprise"]
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = 0.0  # Default value for missing sentiment columns
+        
+        # Prepare the transcription data with sentiments
+        transcription_data = ""
+        for index, row in df.iterrows():
+            dialogue = row["Dialogue"]
+            speaker = row["Speaker"]
+            sentiment_summary = (f"Anger: {row['anger']}, Disgust: {row['disgust']}, "
+                                 f"Fear: {row['fear']}, Joy: {row['joy']}, Neutral: {row['neutral']}, "
+                                 f"Sadness: {row['sadness']}, Surprise: {row['surprise']}")
+            transcription_data += f"{speaker}: {dialogue}\nSentiments: {sentiment_summary}\n\n"
+        
+        # Split the transcription data into manageable chunks
+        transcription_chunks = chunk_text(transcription_data, MAX_TOKENS_PER_CHUNK)
+        
+        print(f"Transcription and sentiments uploaded successfully. Split into {len(transcription_chunks)} chunks.")
     except FileNotFoundError:
         raise FileNotFoundError(f"File not found: {file_path}")
     except Exception as e:
-        raise ValueError(f"An error occurred while reading the file: {str(e)}")
+        raise ValueError(f"An error occurred while reading the CSV file: {str(e)}")
+
+
+def feed_chunks_to_model():
+    """Feeds the transcription chunks to the language model."""
+    global transcription_chunks, memory
+
+    if not transcription_chunks:
+        raise ValueError("No transcription data found. Please upload the transcription first.")
+    
+    # Set up the language model
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    model = 'llama3-8b-8192'
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name=model)
+
+    for i, chunk in enumerate(transcription_chunks):
+        print(f"Feeding chunk {i + 1}/{len(transcription_chunks)} to the model...")
+
+        # Define the system prompt
+        system_prompt = f"""
+        You are a helpful conversational assistant. Here is part {i + 1} of a meeting transcription, including sentiment information.
+        Use this information to build context for answering questions about the meeting:
+        {chunk}
+        """
+        
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content=system_prompt),
+                MessagesPlaceholder(variable_name="chat_history")
+            ]
+        )
+
+        # Feed the chunk to the model
+        LLMChain(llm=groq_chat, prompt=prompt, verbose=False, memory=memory)
+
+    print("All chunks have been fed to the model. You can now start asking questions.")
 
 def ask_question(user_question):
-    """Send the user's question to the language model."""
-    global transcription_data, memory
-
-    if not transcription_data:
-        raise ValueError("No transcription data found. Please upload the transcription first.")
-
-    system_prompt = """
-    You are a helpful conversational assistant with knowledge about a specific meeting transcription. 
-    The user will ask questions about the meeting transcription. Your task is to:
-    
-    - Extract clear, actionable points from the meeting transcription.
-    - Provide responses in a natural language, conversational style.
-    """
+    """Sends a question to the language model and returns the response."""
+    global memory
 
     groq_api_key = os.getenv("GROQ_API_KEY")
     model = 'llama3-8b-8192'
-    
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name=model)
 
+    system_prompt = """
+    You are a helpful conversational assistant with knowledge about a specific meeting transcription and its associated sentiment scores. 
+    Use the provided transcription and sentiment information to answer questions about the meeting. 
+    Keep track of the conversation context, and maintain a coherent conversation across multiple questions.
+    """
+
+    # Define the prompt for the conversation
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessage(content=f"{system_prompt}\n\nMeeting Transcription:\n{transcription_data}"),
+            SystemMessage(content=system_prompt),
             MessagesPlaceholder(variable_name="chat_history"),  
             HumanMessagePromptTemplate.from_template("{human_input}")
         ]
     )
 
     conversation = LLMChain(llm=groq_chat, prompt=prompt, verbose=False, memory=memory)
-    raw_response = conversation.predict(human_input=user_question)
+    response = conversation.predict(human_input=user_question)
     
-    # Save chat history
-    chat_history.append({"user_message": user_question, "bot_response": raw_response})
-    save_chat_history()
-    
-    return raw_response  # Returning raw response as plain text
+    return response
 
-def save_chat_history():
-    with open('chat_history.json', 'w') as f:
-        json.dump(chat_history, f)
-
-def load_chat_history():
-    global chat_history
-    if os.path.exists('chat_history.json'):
-        with open('chat_history.json', 'r') as f:
-            chat_history = json.load(f)
+# ======== API ROUTES ========
 
 @app.route('/upload-transcription', methods=['POST'])
 def upload_transcription():
-    """API to upload a transcription file from the frontend."""
-    global transcription_data
-
+    """API to upload and process the transcription CSV file."""
     if 'transcription' not in request.files:
         return jsonify({"error": "No transcription file found."}), 400
 
     file = request.files['transcription']
+    
+    # Validate the file format
+    if not file.filename.endswith('.csv'):
+        return jsonify({"error": "Invalid file format. Please upload a CSV file."}), 400
 
     try:
-        transcription_data = file.read().decode('utf-8')
-        return jsonify({"message": "Transcription uploaded successfully"}), 200
+        # Save the file to the uploads folder
+        csv_file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(csv_file_path)
+
+        # Process the CSV file
+        upload_transcription_and_sentiments_from_csv(csv_file_path)
+        feed_chunks_to_model()
+        
+        return jsonify({"message": "Transcription and sentiments uploaded and processed successfully."}), 200
     except Exception as e:
-        return jsonify({"error": f"Error reading the file: {str(e)}"}), 500
+        return jsonify({"error": f"Error processing the file: {str(e)}"}), 500
 
 @app.route('/ask-question', methods=['POST'])
 def handle_question():
-    """API to handle questions from the frontend."""
+    """API to handle user questions."""
     data = request.json
     user_question = data.get('question')
 
@@ -115,6 +176,6 @@ def handle_question():
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 400
 
+# ======== MAIN ========
 if __name__ == "__main__":
-    load_chat_history()  
     app.run(host="0.0.0.0", port=5001, debug=True)
